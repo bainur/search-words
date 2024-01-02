@@ -16,22 +16,29 @@ def validate_folder_path(folder_path)
   folder_path
 end
 
-def count_files_with_same_content(folder_path)
-  folder_path = validate_folder_path(folder_path)
+def count_files_with_same_content(folder_path) 
+  folder_path = validate_folder_path(folder_path)  # Validate and expand the folder path
+  content_counts = Hash.new { |hash, key| hash[key] = { count: 0, content: nil } } # Initialize a hash to store content counts along with content itself
+  chunk_size = 4096 # Adjust as needed
 
-  content_counts = Hash.new(0)
-  Pathname.glob("#{folder_path}/**/*").each do |file_path| # search all files within the directory
-    next unless file_path.file? # skip if its not a files
+  Pathname.glob("#{folder_path}/**/*").each do |file_path|# Iterate over all files in the specified directory and its subdirectories
+    next unless file_path.file? # Skip if the current item is not a file
 
-    content = File.binread(file_path) # read the content
-    content_counts[content] += 1 # Increments the count of files with the same content in the content_counts hash.
+    content = ''
+    File.open(file_path, 'rb') do |file|
+      while chunk = file.read(chunk_size) # use chunk so it wont use memory too high for big filesize
+        content << chunk
+      end
+    end
+    content_counts[content][:count] += 1 # Increment the count of files with the same content in the hash
+    content_counts[content][:content] ||= content
   end
-
-  most_common_content, count = content_counts.max_by { |_, v| v } # Finds the most common content and its count using max_by on the content_counts hash
-  [most_common_content, count] # return the array
+  most_common_content = content_counts.max_by { |_, v| v[:count] } # Find the most common content and its count using max_by on the content_counts hash
+  puts "#{most_common_content[1][:content]} : #{most_common_content[1][:count]}"
 end
 
+# Get the folder path from command line argument
 folder_path = ARGV[0]
-content, count = count_files_with_same_content(folder_path)
 
-puts "#{content} : #{count}"
+# Call the function with the specified folder path
+count_files_with_same_content(folder_path)
